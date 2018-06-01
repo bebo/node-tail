@@ -53,12 +53,13 @@ class Tail extends events.EventEmitter
       @emit("error", "watch for #{@filename} failed: #{@err}")
       return
     @pos = if pos? then pos else stats.size  
+    @last = if pos? then 0 else stats.mtime
 
     if @logger
       @logger.info("filesystem.watch present? #{fs.watch isnt undefined}")
       @logger.info("useWatchFile: #{@useWatchFile}")
 
-    if  not @useWatchFile and fs.watch
+    if not @useWatchFile and fs.watch
       @logger.info("watch strategy: watch") if @logger
       @watcher = fs.watch @filename, @fsWatchOptions, (e) => @watchEvent e
     else
@@ -87,10 +88,19 @@ class Tail extends events.EventEmitter
         @logger.error("'rename' event for #{@filename}. File not available.") if @logger
         @emit("error", "'rename' event for #{@filename}. File not available.")
       
-
   watchFileEvent: (curr, prev) ->
-    if curr.size > prev.size
-      @queue.push({start:prev.size, end:curr.size})
+    prev_size = prev?.size || @pos
+    last = prev?.mtime || @last
+    if @pos is 0
+        last = 0
+        prev_size = 0
+    # @logger.info("prev_size", prev_size, prev?.size, "curent_size", curr.size, "pos", @pos, "last", last)
+    @pos = curr.size
+    @last = curr.mtime
+    if curr.mtime > last && curr.size < prev_size
+        prev_size = 0
+    if curr.mtime > last
+      @queue.push({start:prev_size, end:curr.size})
       @internalDispatcher.emit("next") if @queue.length is 1
 
   unwatch: ->

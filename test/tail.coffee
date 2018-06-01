@@ -5,6 +5,9 @@ expect            = require('chai').expect
 
 fileToTest        = path.join __dirname, 'example.txt'
 
+useWatchFile = true
+interval = 2000
+
 describe 'Tail', ->
 
   beforeEach (done) ->
@@ -23,7 +26,7 @@ describe 'Tail', ->
 
       fd = fs.openSync fileToTest, 'w+'
 
-      tailedFile = new Tail fileToTest, {fsWatchOptions: {interval:100}, logger: console}
+      tailedFile = new Tail fileToTest, {useWatchFile: useWatchFile, fsWatchOptions: {interval: interval}, logger: console}
 
       tailedFile.on 'line', (line) ->
         expect(line).to.be.equal text.replace(/[\r\n]/g, '')
@@ -31,7 +34,6 @@ describe 'Tail', ->
 
         if (nbOfReadLines is nbOfLineToWrite)
           tailedFile.unwatch()
-
           done()
 
       for index in [0..nbOfLineToWrite]
@@ -42,10 +44,10 @@ describe 'Tail', ->
   it 'should respect fromBeginning flag', (done) ->
     fd = fs.openSync fileToTest, 'w+'
     lines = ['line#0', 'line#1']
-    readLinesNumber = 0
     readLines = []
+    fs.writeSync fd, lines[0]+'\n'
 
-    tailedFile = new Tail(fileToTest, {fromBeginning:true, fsWatchOptions: {interval:100}})
+    tailedFile = new Tail(fileToTest, {useWatchFile: useWatchFile, fromBeginning:true, fsWatchOptions: {interval: interval}, logger:console})
     tailedFile.on 'line', (line) ->
       readLines.push(line)
       if (readLines.length is lines.length) 
@@ -57,8 +59,7 @@ describe 'Tail', ->
           tailedFile.unwatch()
           done()
 
-    for l in lines
-      fs.writeSync fd, l+'\n'
+    fs.writeSync fd, lines[1]+'\n'
 
     fs.closeSync fd
 
@@ -67,7 +68,7 @@ describe 'Tail', ->
 
     fd = fs.openSync fileToTest, 'w+'
 
-    tailedFile = new Tail fileToTest, {fsWatchOptions: {interval:100}, logger: console}
+    tailedFile = new Tail fileToTest, {useWatchFile: useWatchFile, fsWatchOptions: {interval: interval}, logger: console}
 
     # ensure error gets called when the file is deleted
     tailedFile.on 'error', (line) ->
